@@ -1,0 +1,18 @@
+--- squid-5.9.orig/src/ipcache.cc	2023-05-01 03:59:35
++++ squid-5.9_modified/src/ipcache.cc	2023-07-06 14:28:03
+@@ -319,8 +319,13 @@
+ static ipcache_entry *
+ ipcache_get(const char *name)
+ {
+-    if (ip_table != NULL)
+-        return (ipcache_entry *) hash_lookup(ip_table, name);
++    if (ip_table) {
++        char *newName = xstrdup(name);
++        Tolower(static_cast<char*>(newName));
++        ipcache_entry *entry = (ipcache_entry *) hash_lookup(ip_table, newName);
++        free(newName);
++        return entry;
++    }
+     else
+         return NULL;
+ }

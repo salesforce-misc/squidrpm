@@ -1,0 +1,14 @@
+diff --git a/src/client_side.cc b/src/client_side.cc
+index ba1006dce..d9ffddd59 100644
+--- a/src/client_side.cc
++++ b/src/client_side.cc
+@@ -4115,6 +4115,9 @@ ConnStateData::unpinConnection(const bool andClose)
+ void
+ ConnStateData::checkLogging()
+ {
++    // log message is exploding because nlb tcp healthchecks.
++    return;
++
+     // if we are parsing request body, its request is responsible for logging
+     if (bodyPipe)
+         return;

@@ -1,0 +1,3 @@
+Squid software is distributed under GPLv2+ license and includes 
+contributions from numerous individuals and organizations. This repo is also under same license requirements
+as squid.

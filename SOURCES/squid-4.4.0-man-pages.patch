@@ -1,0 +1,26 @@
+diff --git a/src/http/url_rewriters/LFS/url_lfs_rewrite.8 b/src/http/url_rewriters/LFS/url_lfs_rewrite.8
+index 3053180..1d295fb 100644
+--- a/src/http/url_rewriters/LFS/url_lfs_rewrite.8
++++ b/src/http/url_rewriters/LFS/url_lfs_rewrite.8
+@@ -135,7 +135,7 @@
+ .if n .ad l
+ .nh
+ .SH "NAME"
+-url_lfs_rewrite
++\& url_lfs_rewrite \- a URL-rewriter based on local file existence
+ .SH "SYNOPSIS"
+ .IX Header "SYNOPSIS"
+ .Vb 1
+diff --git a/src/http/url_rewriters/LFS/url_lfs_rewrite.pl.in b/src/http/url_rewriters/LFS/url_lfs_rewrite.pl.in
+index a7168e0..da7055c 100755
+--- a/src/http/url_rewriters/LFS/url_lfs_rewrite.pl.in
++++ b/src/http/url_rewriters/LFS/url_lfs_rewrite.pl.in
+@@ -8,7 +8,7 @@ use Pod::Usage;
+ 
+ =head1 NAME
+ 
+-B<url_lfs_rewrite>
++B<url_lfs_rewrite> - a URL-rewriter based on local file existence
+ 
+ =head1 SYNOPSIS
+ 
