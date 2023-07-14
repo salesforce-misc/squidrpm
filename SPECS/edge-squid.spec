@@ -38,7 +38,7 @@ Patch206: squid-4.4.0-active-ftp.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1612524
 # https://github.com/opnsense/ports/blob/master/www/squid/files/extra-patch-host-header-forgery
 Patch303: squid-5.9-extra-patch-host-header-forgery.patch
-https://bugs.squid-cache.org/show_bug.cgi?id=5185
+# https://bugs.squid-cache.org/show_bug.cgi?id=5185
 Patch304: squid-5.9-ip-cache-lookup.patch
 
 Requires: bash >= 2.0
