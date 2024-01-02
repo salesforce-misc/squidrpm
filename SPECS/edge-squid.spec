@@ -107,8 +107,8 @@ lookup program (dnsserver), a program for retrieving FTP data
 autoconf
 
 # libtool fails somewhat on -fpie. PIC also works for -pie
-CXXFLAGS="$RPM_OPT_FLAGS -fPIC"
-CFLAGS="$RPM_OPT_FLAGS -fPIC"
+CXXFLAGS="$RPM_OPT_FLAGS -fPIC -Wno-error"
+CFLAGS="$RPM_OPT_FLAGS -fPIC -Wno-error"
 LDFLAGS="$RPM_LD_FLAGS -pie -Wl,-z,relro -Wl,-z,now -Wl,--warn-shared-textrel"
 
 # NIS helper has been removed because of the following bug
