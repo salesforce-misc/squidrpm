@@ -1,0 +1,91 @@
+--- squid-SQUID_7_2/src/dns_internal.cc	2025-10-17 01:45:14
++++ squid-SQUID_7_2-patched/src/dns_internal.cc	2025-11-25 19:43:09
+@@ -1749,6 +1749,31 @@
+     idnsSendQuery(q);
+ }
+ 
++static void
++idnsSendSlaveAQuery(idns_query *master)
++{
++    idns_query *q = new idns_query;
++    memcpy(q->name, master->name, sizeof(q->name));
++    memcpy(q->orig, master->orig, sizeof(q->orig));
++    q->master = master;
++    q->query_id = idnsQueryID();
++    q->sz = rfc3596BuildAQuery(q->name, q->buf, sizeof(q->buf), q->query_id, &q->query);
++
++    debugs(78, 3, "buf is " << q->sz << " bytes for " << q->name <<
++           ", id = 0x" << asHex(q->query_id));
++    if (!q->sz) {
++        delete q;
++        return;
++    }
++
++    q->start_t = master->start_t;
++    q->slave = master->slave;
++
++    idnsCheckMDNS(q);
++    master->slave = q;
++    idnsSendQuery(q);
++}
++
+ void
+ idnsALookup(const char *name, IDNSCB * callback, void *data)
+ {
+@@ -1788,23 +1813,43 @@
+         debugs(78, 3, "idnsALookup: searchpath used for " << q->name);
+     }
+ 
+-    q->sz = rfc3596BuildAQuery(q->name, q->buf, sizeof(q->buf), q->query_id, &q->query);
++    // IPv6-first: Send AAAA query first if IPv6 is enabled, otherwise send A query
++    if (Ip::EnableIpv6) {
++        // Build and send AAAA query first (becomes master)
++        q->sz = rfc3596BuildAAAAQuery(q->name, q->buf, sizeof(q->buf), q->query_id, &q->query);
+ 
+-    if (q->sz < 0) {
+-        /* problem with query data -- query not sent */
+-        idnsCallbackOnEarlyError(callback, data, "rfc3596BuildAQuery error");
+-        delete q;
+-        return;
+-    }
++        if (q->sz < 0) {
++            /* problem with query data -- query not sent */
++            idnsCallbackOnEarlyError(callback, data, "rfc3596BuildAAAAQuery error");
++            delete q;
++            return;
++        }
+ 
+-    debugs(78, 3, "idnsALookup: buf is " << q->sz << " bytes for " << q->name <<
+-           ", id = 0x" << asHex(q->query_id));
++        debugs(78, 3, "idnsALookup: buf is " << q->sz << " bytes for " << q->name <<
++               ", id = 0x" << asHex(q->query_id));
+ 
+-    idnsCheckMDNS(q);
+-    idnsStartQuery(q, callback, data);
++        idnsCheckMDNS(q);
++        idnsStartQuery(q, callback, data);
+ 
+-    if (Ip::EnableIpv6)
+-        idnsSendSlaveAAAAQuery(q);
++        // Send A query as slave
++        idnsSendSlaveAQuery(q);
++    } else {
++        // IPv6 disabled: Send A query only (original behavior)
++        q->sz = rfc3596BuildAQuery(q->name, q->buf, sizeof(q->buf), q->query_id, &q->query);
++
++        if (q->sz < 0) {
++            /* problem with query data -- query not sent */
++            idnsCallbackOnEarlyError(callback, data, "rfc3596BuildAQuery error");
++            delete q;
++            return;
++        }
++
++        debugs(78, 3, "idnsALookup: buf is " << q->sz << " bytes for " << q->name <<
++               ", id = 0x" << asHex(q->query_id));
++
++        idnsCheckMDNS(q);
++        idnsStartQuery(q, callback, data);
++    }
+ }
+ 
+ void
