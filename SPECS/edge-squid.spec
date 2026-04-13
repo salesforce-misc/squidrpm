@@ -5,7 +5,7 @@
 
 Name:     edge-squid
 Version:  7.3
-Release:  6%{?dist}
+Release:  7%{?dist}
 Summary:  The Squid proxy caching server
 Epoch:    7
 # See CREDITS for breakdown of non GPLv2+ code
@@ -103,8 +103,7 @@ lookup program (dnsserver), a program for retrieving FTP data
 #%patch301 -p1 -b .aws-lnb-excessive-log.patch
 #%patch302 -p1 -b .ssl-forgery
 %patch 303 -p1 -b .extra-patch-host-header-forgery.patch
-#Case insensitive lookup is included in Squid 6.14 at entry creation level, so the patch is no longer necessary.
-#%patch304 -p1 -b .ip-cache-lookup.patch
+%patch 304 -p1 -b .ip-cache-lookup.patch
 %patch 305 -p1 -b .connect-default-https-port.patch
 
 
