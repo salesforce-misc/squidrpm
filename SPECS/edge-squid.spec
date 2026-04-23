@@ -42,6 +42,8 @@ Patch303: squid-5.9-extra-patch-host-header-forgery.patch
 Patch304: squid-5.9-ip-cache-lookup.patch
 # Fix ERR_INVALID_URL for relative URI (GET / with Host) and CONNECT host without port (Squid 7.x)
 Patch305: squid-7-connect-default-https-port.patch
+# Log per-side close reason for TCP tunnels via %tunnel::>close_source / %tunnel::<close_source
+Patch306: squid-7.3-tunnel-close-logging.patch
 
 Requires: bash >= 2.0
 Requires(pre): shadow-utils
@@ -105,6 +107,7 @@ lookup program (dnsserver), a program for retrieving FTP data
 %patch 303 -p1 -b .extra-patch-host-header-forgery.patch
 %patch 304 -p1 -b .ip-cache-lookup.patch
 %patch 305 -p1 -b .connect-default-https-port.patch
+%patch 306 -p1 -b .tunnel-close-logging.patch
 
 
 %build
@@ -299,6 +302,12 @@ fi
 
 
 %changelog
+* Wed Apr 23 2026 Damodhar Kavali <dkavali@salesforce.com> - 7:7.3-7
+- Add tunnel close-reason logging: new %tunnel::>close_source and
+  %tunnel::<close_source access log tokens record which side closed
+  each TCP tunnel and why (eof, rst, error, timeout, cascade,
+  write_eof, write_error).
+
 * Fri Aug 23 2019 Lubos Uhliarik <luhliari@redhat.com> - 7:4.4-5
 - Resolves: #1744672 - CVE-2019-12527 squid:4/squid: heap-based buffer overflow
   in HttpHeader::getAuth
