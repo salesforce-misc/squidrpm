@@ -5,7 +5,7 @@
 
 Name:     edge-squid
 Version:  7.3
-Release:  7%{?dist}
+Release:  8%{?dist}
 Summary:  The Squid proxy caching server
 Epoch:    7
 # See CREDITS for breakdown of non GPLv2+ code

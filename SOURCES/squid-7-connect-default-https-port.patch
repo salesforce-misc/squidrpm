@@ -1,14 +1,17 @@
 --- a/src/anyp/Uri.cc
 +++ b/src/anyp/Uri.cc
-@@ -334,8 +334,9 @@
+@@ -334,8 +334,11 @@
              SBufToCstring(foundHost, rawHost);
  
-             if (!tok.skip(':'))
+-            if (!tok.skip(':'))
 -                throw TextException("missing required :port in CONNECT target", Here());
 -            foundPort = parsePort(tok);
-+                foundPort = 443; // default to HTTPS port when client omits it
-+            else
-+                foundPort = parsePort(tok);
++            if (!tok.skip(':')) {
++                foundPort = 443;
++            } else {
++                (void)tok.skipAll(CharacterSet::WSP);
++                foundPort = tok.remaining().isEmpty() ? 443 : parsePort(tok);
++            }
  
              if (!tok.remaining().isEmpty())
                  throw TextException("garbage after host:port in CONNECT target", Here());
