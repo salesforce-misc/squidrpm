@@ -1,0 +1,201 @@
+--- squid-7.3.orig/src/AccessLogEntry.h
++++ squid-7.3/src/AccessLogEntry.h
+@@ -184,6 +184,17 @@
+     } adapt;
+ #endif
+ 
++    /** \brief This subclass holds log info for TCP tunnel connection closures.
++     * Records which side initiated each connection close and the close type.
++     */
++    class TunnelCloseDetails
++    {
++    public:
++        /// describes who initiated the connection close
++        const char *clientClose = nullptr; ///< who/how the client-to-Squid connection closed
++        const char *serverClose = nullptr; ///< who/how the Squid-to-server connection closed
++    } tunnel;
++
+     SBuf lastAclName; ///< string for external_acl_type %ACL format code
+     SBuf lastAclData; ///< string for external_acl_type %DATA format code
+ 
+--- squid-7.3.orig/src/format/ByteCode.h
++++ squid-7.3/src/format/ByteCode.h
+@@ -176,6 +176,9 @@
+     LFT_SQUID_HIERARCHY,
+     LFT_SQUID_REQUEST_ATTEMPTS,
+ 
++    LFT_TUNNEL_CLIENT_CLOSE_SOURCE,
++    LFT_TUNNEL_SERVER_CLOSE_SOURCE,
++
+     LFT_MIME_TYPE,
+     LFT_TAG,
+     LFT_EXT_LOG,
+--- squid-7.3.orig/src/format/Format.cc
++++ squid-7.3/src/format/Format.cc
+@@ -1027,6 +1027,16 @@
+         case LFT_SQUID_REQUEST_ATTEMPTS:
+             outint = al->requestAttempts;
+             doint = 1;
++            break;
++
++        case LFT_TUNNEL_CLIENT_CLOSE_SOURCE:
++            if (al->tunnel.clientClose)
++                out = al->tunnel.clientClose;
++            break;
++
++        case LFT_TUNNEL_SERVER_CLOSE_SOURCE:
++            if (al->tunnel.serverClose)
++                out = al->tunnel.serverClose;
+             break;
+ 
+         case LFT_MIME_TYPE:
+--- squid-7.3.orig/src/format/Token.cc
++++ squid-7.3/src/format/Token.cc
+@@ -248,6 +248,12 @@
+     TokenTableEntry(nullptr, LFT_NONE)
+ };
+ #endif
++
++static TokenTableEntry TokenTableTunnel[] = {
++    TokenTableEntry(">close_source", LFT_TUNNEL_CLIENT_CLOSE_SOURCE),
++    TokenTableEntry("<close_source", LFT_TUNNEL_SERVER_CLOSE_SOURCE),
++    TokenTableEntry(nullptr, LFT_NONE)           /* this must be last */
++};
+ } // namespace Format
+ 
+ /// Register all components custom format tokens
+@@ -268,6 +274,7 @@
+ #endif
+     TheConfig.registerTokens(SBuf("proxy_protocol"), ::Format::TokenTableProxyProtocol);
+     TheConfig.registerTokens(SBuf("transport"), ::Format::TokenTableTransport);
++    TheConfig.registerTokens(SBuf("tunnel"), ::Format::TokenTableTunnel);
+ }
+ 
+ /// Scans a token table to see if the next token exists there
+--- squid-7.3.orig/src/tunnel.cc
++++ squid-7.3/src/tunnel.cc
+@@ -272,6 +272,9 @@
+     void updateAttempts(int);
+ 
+ public:
++    /// record which side closed and why in the access log entry
++    void noteTunnelClose(Connection &conn, const char *closeTag);
++
+     bool keepGoingAfterRead(size_t len, Comm::Flag errcode, int xerrno, Connection &from, Connection &to);
+     void copy(size_t len, Connection &from, Connection &to, IOCB *);
+     void readServer(char *buf, size_t len, Comm::Flag errcode, int xerrno);
+@@ -371,7 +374,25 @@
+     //
+     // This asynchronous close() leads to another finishWritingAndDelete() call
+     // but with true noConnections() that finally triggers deleteThis().
++    noteTunnelClose(remainingConnection, "cascade");
+     remainingConnection.conn->close();
++}
++
++void
++TunnelStateData::noteTunnelClose(Connection &conn, const char *closeTag)
++{
++    if (!al)
++        return;
++
++    const bool isClient = (&conn == &client);
++    const char *&dest = isClient ? al->tunnel.clientClose : al->tunnel.serverClose;
++
++    // only record the first close reason per side
++    if (dest)
++        return;
++
++    dest = closeTag;
++    debugs(26, 3, (isClient ? "client" : "server") << " tunnel close: " << closeTag);
+ }
+ 
+ /// destroys the tunnel (after performing potentially-throwing cleanup)
+@@ -675,14 +696,23 @@
+         commSetConnTimeout(to.conn, Config.Timeout.read, timeoutCall);
+     }
+ 
+-    if (errcode)
+-        from.error (xerrno);
+-    else if (len == 0 || !Comm::IsConnOpen(to.conn)) {
++    if (errcode) {
++        if (xerrno == ECONNRESET)
++            noteTunnelClose(from, "rst");
++        else
++            noteTunnelClose(from, "error");
++        from.error (xerrno);
++    } else if (len == 0 || !Comm::IsConnOpen(to.conn)) {
+         debugs(26, 3, "Nothing to write or client gone. Terminate the tunnel.");
++        if (len == 0)
++            noteTunnelClose(from, "eof");
++        else
++            noteTunnelClose(from, "cascade");
+         from.conn->close();
+ 
+         /* Only close the remote end if we've finished queueing data to it */
+         if (from.len == 0 && Comm::IsConnOpen(to.conn) ) {
++            noteTunnelClose(to, "cascade");
+             to.conn->close();
+         }
+     } else if (cbdataReferenceValid(this)) {
+@@ -725,6 +755,7 @@
+     /* Error? */
+     if (flag != Comm::OK) {
+         debugs(26, 4, "to-server write failed: " << xerrno);
++        noteTunnelClose(server, "write_error");
+         server.error(xerrno); // may call comm_close
+         return;
+     }
+@@ -732,6 +763,7 @@
+     /* EOF? */
+     if (len == 0) {
+         debugs(26, 4, "No read input. Closing server connection.");
++        noteTunnelClose(server, "write_eof");
+         server.conn->close();
+         return;
+     }
+@@ -744,6 +776,7 @@
+     /* If the other end has closed, so should we */
+     if (!Comm::IsConnOpen(client.conn)) {
+         debugs(26, 4, "Client gone away. Shutting down server connection.");
++        noteTunnelClose(server, "cascade");
+         server.conn->close();
+         return;
+     }
+@@ -818,6 +851,7 @@
+     /* Error? */
+     if (flag != Comm::OK) {
+         debugs(26, 4, "from-client read failed: " << xerrno);
++        noteTunnelClose(client, "write_error");
+         client.error(xerrno); // may call comm_close
+         return;
+     }
+@@ -825,6 +859,7 @@
+     /* EOF? */
+     if (len == 0) {
+         debugs(26, 4, "Closing client connection due to 0 byte read.");
++        noteTunnelClose(client, "write_eof");
+         client.conn->close();
+         return;
+     }
+@@ -836,6 +871,7 @@
+     /* If the other end has closed, so should we */
+     if (!Comm::IsConnOpen(server.conn)) {
+         debugs(26, 4, "Server has gone away. Terminating client connection.");
++        noteTunnelClose(client, "cascade");
+         client.conn->close();
+         return;
+     }
+@@ -854,6 +890,13 @@
+     /* Temporary lock to protect our own feets (comm_close -> tunnelClientClosed -> Free) */
+     CbcPointer<TunnelStateData> safetyLock(tunnelState);
+ 
++    if (io.conn == tunnelState->client.conn) {
++        tunnelState->noteTunnelClose(tunnelState->client, "timeout");
++        tunnelState->noteTunnelClose(tunnelState->server, "cascade");
++    } else {
++        tunnelState->noteTunnelClose(tunnelState->server, "timeout");
++        tunnelState->noteTunnelClose(tunnelState->client, "cascade");
++    }
+     tunnelState->closeConnections();
+ }
+ 
