@@ -42,6 +42,7 @@ Patch303: squid-5.9-extra-patch-host-header-forgery.patch
 Patch304: squid-5.9-ip-cache-lookup.patch
 # Fix ERR_INVALID_URL for relative URI (GET / with Host) and CONNECT host without port (Squid 7.x)
 Patch305: squid-7-connect-default-https-port.patch
+Patch306: squid-7.3-ipv6-first-dns-query.patch
 
 Requires: bash >= 2.0
 Requires(pre): shadow-utils
@@ -105,6 +106,7 @@ lookup program (dnsserver), a program for retrieving FTP data
 %patch 303 -p1 -b .extra-patch-host-header-forgery.patch
 %patch 304 -p1 -b .ip-cache-lookup.patch
 %patch 305 -p1 -b .connect-default-https-port.patch
+%patch 306 -p1 -b .ipv6-first-dns-query
 
 
 %build
