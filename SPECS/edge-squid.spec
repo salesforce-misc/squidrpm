@@ -4,8 +4,8 @@
 %global debug_package %{nil}
 
 Name:     edge-squid
-Version:  7.3
-Release:  9%{?dist}
+Version:  7.8
+Release:  1%{?dist}
 Summary:  The Squid proxy caching server
 Epoch:    7
 # See CREDITS for breakdown of non GPLv2+ code
@@ -301,6 +301,10 @@ fi
 
 
 %changelog
+* Sun Nov 22 2026 Ashish Vishal <avishal@salesforce.com> - 7:7.8-1
+- Upgrade to squid 7.8 (W-24955394)
+- Carry forward Patch306 (IPv6-first DNS query), applies cleanly to 7.8
+
 * Fri Aug 23 2019 Lubos Uhliarik <luhliari@redhat.com> - 7:4.4-5
 - Resolves: #1744672 - CVE-2019-12527 squid:4/squid: heap-based buffer overflow
   in HttpHeader::getAuth
